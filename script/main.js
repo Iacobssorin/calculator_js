@@ -1,190 +1,153 @@
 const displayText = document.querySelector('#result');
 displayText.textContent = "0";
-
 const buttons = document.querySelectorAll('button');
 let currentText = '0';
 
-
-function add(a, b){
- 
-        return Number(b) + Number(a);
-
+// Funcții matematice corectate
+function add(a, b) { return Number(a) + Number(b); }
+function minus(a, b) { return Number(a) - Number(b); }
+function multiply(a, b) { return Number(a) * Number(b); }
+function division(a, b) { 
+    if (Number(b) === 0) return "Error";
+    return Number(a) / Number(b); 
 }
+function percentage(a) { return Number(a) / 100; }
 
-function minus(a,b){
-var x = Number(a);
-var y = Number(b);
-var z = Math.abs(x) - Math.abs(y);
-        return z;
-    }
-
-
- 
-    
-
-
-function multiply(a,b){
-
-    return( Number(a) * Number(b));
-}
-
-function division(a,b){
-  if (b > 0) {
-    return (Number(a) / Number(b));
-  }
-  else { 
-    alert("Can't make that");
-
-  }
-   
-  
-}
-function square(a) {
- return Math.sqrt(a);
-
-}
-
-function percentage(a){
-    return Number(a)/100;
-}
-
-function clearDisplay(){
+function clearDisplay() {
     displayText.textContent = '0';
     currentText = '0';
 }
 
-
-function operate(x){
-    let i = '';
-    i = x.indexOf('+');
-    if( i >= 0 )
-    x = add(operate(x.slice(0, i)) , operate(x.slice(i+=1)) );
-    else {
-        i = x.indexOf('-');
-        if( i >= 0)
-        x = minus( operate(x.slice(0, i)) , operate(x.slice(i +1)));
-
-        else {
-            i=x.indexOf('x');
-            if( i >= 0 )
-            x = multiply( operate(x.slice(0,i)) , operate(x.slice(i+1)) );
-            else {
-                i=x.indexOf('÷');
-                if( i >= 0 )
-                x = division( operate(x.slice(0,i)) , operate(x.slice(i+1)) );
-                else{
-                    i=x.indexOf('%');
-                    if( i >= 0 )
-                    x = percentage( operate(x.slice(0,i)) ) + x.slice(i+1);
-                 }}}}
-
-              
-    if(!isNaN(x))
-    return '' + x;
-}
-
-
-function addText(a){
-    if (displayText.textContent.length > 18 ) {
-  
-  alert("I'm not that smart!");
-  clearDisplay();
-  return;
-   
-} if (a < 0) {
-    a = Math.abs(a)
-}
-    if(a == 'C') {
-    clearDisplay();
-    return;
+// Funcție de evaluare mai sigură care respectă ordinea de la stânga la dreapta
+function operate(expression) {
+    // Tratare procentaj primară
+    if (expression.includes('%')) {
+        let i = expression.indexOf('%');
+        let num = expression.slice(0, i);
+        let rest = expression.slice(i + 1);
+        return operate(percentage(operate(num)) + rest);
     }
 
-    if(displayText.textContent == "Not defined" || displayText.textContent == "Infinity" )
-    clearDisplay();
+    // Căutăm operatorii în ordine inversă a priorității (Adunare/Scădere mai întâi)
+    // Folosim lastIndexOf pentru a asigura evaluarea corectă de la stânga la dreapta
+    let i = expression.lastIndexOf('+');
+    if (i >= 0) return add(operate(expression.slice(0, i)), operate(expression.slice(i + 1)));
 
-    if(a == '='){ 
-      let numDecimal = Math.round(operate(currentText)*1e11) /1e11;
-    currentText = displayText.textContent = numDecimal.toString().slice(0, 4);
- 
-    if(isNaN(displayText.textContent))
-      displayText.textContent = "Divide by 0 error";
-  
+    i = expression.lastIndexOf('-');
+    if (i >= 0) return minus(operate(expression.slice(0, i)), operate(expression.slice(i + 1)));
 
+    i = expression.lastIndexOf('x');
+    if (i >= 0) return multiply(operate(expression.slice(0, i)), operate(expression.slice(i + 1)));
 
-    return;
-    }else if(a == '⬅'){
-              
-        if(displayText.textContent.length == 1){
+    i = expression.lastIndexOf('÷');
+    if (i >= 0) return division(operate(expression.slice(0, i)), operate(expression.slice(i + 1)));
+
+    return expression.trim();
+}
+
+function addText(a) {
+    if (displayText.textContent.length > 18) {
+        alert("I'm not that smart!");
         clearDisplay();
         return;
-        }
-        else if(displayText.textContent[displayText.textContent.length-1] == ' ')
-                displayText.textContent = displayText.textContent.slice(0, displayText.textContent.length -3 );
-            else
-                displayText.textContent = displayText.textContent.slice(0, displayText.textContent.length -1 );
-        
-        
-        currentText = currentText.toString().slice(0, currentText.length -1);
-    
+    }
+
+    if (a === 'C') {
+        clearDisplay();
         return;
+    }
 
-    }else   if(['x','÷','+','-'].includes(a))
-            displayText.textContent += ' ' + a + ' ';
-                else if(currentText == '0')
-                    displayText.textContent = a;
-                    else
-                    displayText.textContent += a;
+    if (displayText.textContent === "Error" || displayText.textContent === "Infinity") {
+        clearDisplay();
+    }
+
+    if (a === '=') {
+        let result = operate(currentText);
+        
+        if (result === "Error" || isNaN(result)) {
+            displayText.textContent = "Error";
+            currentText = '0';
+            return;
+        }
+
+        // Rotunjire inteligentă la maximum 5 zecimale pentru a nu depăși ecranul
+        let numDecimal = Math.round(Number(result) * 1e5) / 1e5;
+        displayText.textContent = numDecimal.toString();
+        currentText = numDecimal.toString();
+        return;
+    } 
     
-    if(displayText.textContent != '0')
-    currentText += a;
+    if (a === '⬅') {
+        if (displayText.textContent.length <= 1) {
+            clearDisplay();
+            return;
+        }
+        
+        // Șterge spațiile adăugate pe lângă operatori
+        if (displayText.textContent.endsWith(' ')) {
+            displayText.textContent = displayText.textContent.slice(0, -3);
+        } else {
+            displayText.textContent = displayText.textContent.slice(0, -1);
+        }
+        currentText = currentText.slice(0, -1);
+        return;
+    }
 
-} 
+    // Gestionare afișaj operatori și numere
+    if (['x', '÷', '+', '-'].includes(a)) {
+        displayText.textContent += ' ' + a + ' ';
+        currentText += a;
+    } else {
+        if (displayText.textContent === '0') {
+            displayText.textContent = a;
+            currentText = a;
+        } else {
+            displayText.textContent += a;
+            currentText += a;
+        }
+    }
+}
 
-function entry (t){
-    let checkIndex = currentText.length -1;
-    if(['x','÷','+','-','='].includes(t)  && ['x','÷','+','-'].includes(currentText[checkIndex]) )
-    return;
-
-    if(t == '%' && ['x','÷','+','-'].includes(currentText[checkIndex]))
-    addText('C');
-
-    while(['x','÷','+','-','.'].includes(currentText[checkIndex]) == false && checkIndex > 0) {
-        --checkIndex;
+function entry(t) {
+    let checkIndex = currentText.length - 1;
+    
+    // Previne introducerea a doi operatori consecutivi
+    if (['x', '÷', '+', '-'].includes(t) && ['x', '÷', '+', '-'].includes(currentText[checkIndex])) {
+        return;
     }
     
-    if (currentText[checkIndex] == '.' && t == '.')
-    return;
+    // Previne punctele zecimale multiple în același număr
+    if (t === '.') {
+        let lastOperator = Math.max(
+            currentText.lastIndexOf('+'),
+            currentText.lastIndexOf('-'),
+            currentText.lastIndexOf('x'),
+            currentText.lastIndexOf('÷')
+        );
+        let currentNumberSegment = currentText.slice(lastOperator + 1);
+        if (currentNumberSegment.includes('.')) return;
+    }
 
     addText(t);
 }
 
-buttons.forEach( button => {
+// Evenimente Mouse
+buttons.forEach(button => {
     button.addEventListener('click', (e) => {
-        if(e.screenX != 0)
         entry(e.target.textContent);
     });
-
 });
 
+// Evenimente Tastatură
 window.addEventListener('keydown', (e) => {
-      
-        if(['+','-','=','%','1','2','3','4','5','6','7','8','9','0','.'].includes(e.key))
+    if (['+', '-', '=', '%', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '.'].includes(e.key)) {
         entry(e.key);
-        console.log(e);
-
-        switch(e.key){
-            case '*': entry('x');
-            break;
-
-            case '/': entry('÷');
-            break;
-
-            case 'Enter': entry('=');
-            break;
-
-            case 'Escape': entry('clear');
-            break;
-
-            case 'Backspace': entry('C');
-        }
+    }
+    switch (e.key) {
+        case '*': entry('x'); break;
+        case '/': entry('÷'); break;
+        case 'Enter': entry('='); break;
+        case 'Escape': clearDisplay(); break;
+        case 'Backspace': entry('⬅'); break; // Mapat corect la funcția de ștergere (Backspase = ⬅)
+    }
 });
